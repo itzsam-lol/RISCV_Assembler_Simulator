@@ -8,7 +8,6 @@ REGISTERS = {
     's7': 23, 's8': 24, 's9': 25, 's10': 26, 's11': 27, 't3': 28, 't4': 29, 't5': 30, 't6': 31
 }
 
-# (type, opcode, funct3, funct7)
 INSTRUCTIONS = {
     'add':  ('R', '0110011', '000', '0000000'),
     'sub':  ('R', '0110011', '000', '0100000'),
@@ -33,8 +32,6 @@ INSTRUCTIONS = {
     'lui':  ('U', '0110111', None, None),
     'auipc':('U', '0010111', None, None),
     'jal':  ('J', '1101111', None, None),
-    
-    # Custom/Bonus
     'mul':  ('R', '0000000', '011', '0000000'),
     'rvrs': ('R', '0000000', '001', '0000000'),
     'rst':  ('Z', '0000000', '000', '0000000'),
@@ -42,7 +39,6 @@ INSTRUCTIONS = {
 }
 
 def to_bin(val, bits):
-    """Convert integer to two's complement binary string of given bit length."""
     val = int(val)
     if val < 0:
         val = (1 << bits) + val
@@ -53,7 +49,7 @@ class Assembler:
         self.labels = {}
         self.code_lines = []
         self.address = 0
-    
+
     def parse_register(self, reg_str):
         reg_str = reg_str.strip()
         if reg_str not in REGISTERS:
@@ -61,56 +57,45 @@ class Assembler:
         return to_bin(REGISTERS[reg_str], 5)
 
     def extract_imm_and_reg(self, token):
-        # Extracts immediate and register from format like `imm(reg)`
         if '(' in token and token.endswith(')'):
             imm_str, reg_str = token[:-1].split('(')
             return int(imm_str.strip()), reg_str.strip()
         raise ValueError(f"Invalid format expected imm(reg), got {token}")
 
     def pass_one(self, lines):
-        """First pass: find labels and build clean instructions."""
         self.address = 0
         cleaned_lines = []
         for line_num, line in enumerate(lines):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
-            
-            # Remove inline comments
             if '#' in line:
                 line = line[:line.index('#')].strip()
-
             if ':' in line:
                 label, instr = line.split(':', 1)
                 label = label.strip()
                 instr = instr.strip()
                 self.labels[label] = self.address
                 if not instr:
-                    continue  # Just a label on a line
+                    continue
                 line = instr
-                
             cleaned_lines.append((line_num + 1, self.address, line))
             self.address += 4
         return cleaned_lines
 
     def pass_two(self, cleaned_lines):
-        """Second pass: convert assembly to binary."""
         binary_output = []
         for line_num, address, line in cleaned_lines:
             try:
-                # Split instruction name and operands
                 parts = line.replace(',', ' ').split()
                 inst_name = parts[0]
-                
                 if inst_name not in INSTRUCTIONS:
                     raise ValueError(f"Unknown instruction '{inst_name}'")
-                
                 itype, opcode, funct3, funct7 = INSTRUCTIONS[inst_name]
                 args = parts[1:]
 
                 if itype == 'R':
                     if inst_name == 'rvrs':
-                        # rvrs rd, rs1 (assumes rs2=0)
                         if len(args) != 2:
                             raise ValueError(f"{inst_name} expects 2 arguments")
                         rd, rs1 = self.parse_register(args[0]), self.parse_register(args[1])
@@ -122,10 +107,10 @@ class Assembler:
                         rs1 = self.parse_register(args[1])
                         rs2 = self.parse_register(args[2])
                     encoded = funct7 + rs2 + rs1 + funct3 + rd + opcode
-                    
+
                 elif itype == 'I':
                     if inst_name == 'lw':
-                        if len(args) != 2: # lw rd, imm(rs1)
+                        if len(args) != 2:
                             raise ValueError(f"lw expects rd, imm(rs1)")
                         rd = self.parse_register(args[0])
                         imm_val, rs1_str = self.extract_imm_and_reg(args[1])
@@ -140,7 +125,7 @@ class Assembler:
                     encoded = imm + rs1 + funct3 + rd + opcode
 
                 elif itype == 'S':
-                    if len(args) != 2: # sw rs2, imm(rs1)
+                    if len(args) != 2:
                         raise ValueError(f"sw expects rs2, imm(rs1)")
                     rs2 = self.parse_register(args[0])
                     imm_val, rs1_str = self.extract_imm_and_reg(args[1])
@@ -158,18 +143,16 @@ class Assembler:
                         offset = self.labels[target] - address
                     else:
                         offset = int(target)
-                    
-                    imm = to_bin(offset, 13) # the 0th bit is always 0 in RISC-V branches
-                    # Format: imm[12] imm[10:5] rs2 rs1 funct3 imm[4:1] imm[11] opcode
+                    imm = to_bin(offset, 13)
                     encoded = imm[0] + imm[2:8] + rs2 + rs1 + funct3 + imm[8:12] + imm[1] + opcode
 
                 elif itype == 'U':
                     if len(args) != 2:
                         raise ValueError(f"{inst_name} expects 2 arguments")
                     rd = self.parse_register(args[0])
-                    imm = to_bin((int(args[1]) & 0xFFFFF), 20) # already upper bits
+                    imm = to_bin((int(args[1]) & 0xFFFFF), 20)
                     encoded = imm + rd + opcode
-                    
+
                 elif itype == 'J':
                     if len(args) != 2:
                         raise ValueError(f"{inst_name} expects 2 arguments")
@@ -179,9 +162,7 @@ class Assembler:
                         offset = self.labels[target] - address
                     else:
                         offset = int(target)
-                        
-                    imm = to_bin(offset, 21) # 21 bits, LSB is 0
-                    # Format: imm[20] imm[10:1] imm[11] imm[19:12] rd opcode
+                    imm = to_bin(offset, 21)
                     encoded = imm[0] + imm[10:20] + imm[9] + imm[1:9] + rd + opcode
 
                 elif itype == 'Z':
@@ -189,19 +170,18 @@ class Assembler:
                         encoded = "0" * 32
                     elif inst_name == 'halt':
                         encoded = "00000000000000000000000001100011"
-                
+
                 binary_output.append(encoded)
 
             except Exception as e:
                 return (None, f"Error at line {line_num}: {e}")
-        
+
         return (binary_output, None)
 
 def main():
     parser = argparse.ArgumentParser(description="RISC-V Assembler")
     parser.add_argument('input', nargs='?', help='Input assembly file')
     parser.add_argument('output', nargs='?', help='Output binary file')
-
     args = parser.parse_args()
 
     if args.input:
