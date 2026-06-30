@@ -1,0 +1,15 @@
+[options]
+mode bmc
+depth 20
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal picorv32/picorv32.v
+read -formal properties/rv32i_check.sv
+prep -top picorv32
+
+[files]
+picorv32/picorv32.v
+properties/rv32i_check.sv

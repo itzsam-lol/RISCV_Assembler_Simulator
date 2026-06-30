@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![ISA](https://img.shields.io/badge/ISA-RV32I-orange)
-![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-147%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 A complete RV32I toolchain in Python: two-pass assembler, cycle-accurate simulator, and a formal verification harness that uses the simulator as a golden reference model to prove RTL correctness. The architecture mirrors how industrial formal verification works — the Python simulator is the *behavioral specification*, an RTL core is the *structural implementation*, and the formal layer provides *exhaustive proof of equivalence* for every reachable state.
