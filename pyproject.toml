@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "riscv-sim"
+version = "1.0.0"
+description = "RV32I assembler and golden reference simulator"
+requires-python = ">=3.11"
+
+[project.scripts]
+riscv-assemble = "cli.assemble:main"
+riscv-simulate = "cli.simulate:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["riscv*", "cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.coverage.run]
+source = ["riscv"]
